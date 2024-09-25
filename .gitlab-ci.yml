@@ -1,0 +1,161 @@
+# Code quality and security templates
+include:
+  - template: Code-Quality.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
+stages:
+  - build
+  - test
+  - docker
+  - deploy
+
+# Building services
+
+build_service_registry:
+  stage: build
+  image: maven:3.8.5-openjdk-17-slim
+  script:
+    - cd service-registry
+    - mvn package
+  artifacts:
+    paths:
+      - service-registry/target/*.jar
+    expire_in: 1 hour
+
+build_api_gateway:
+  stage: build
+  image: maven:3.8.5-openjdk-17-slim
+  script:
+    - cd api-gateway
+    - mvn package
+  artifacts:
+    paths:
+      - api-gateway/target/*.jar
+    expire_in: 1 hour
+
+build_department_service:
+  stage: build
+  image: maven:3.8.5-openjdk-17-slim
+  script:
+    - cd department-service
+    - mvn package
+  artifacts:
+    paths:
+      - department-service/target/*.jar
+    expire_in: 1 hour
+
+build_user_service:
+  stage: build
+  image: maven:3.8.5-openjdk-17-slim
+  script:
+    - cd user-service
+    - mvn package
+  artifacts:
+    paths:
+      - user-service/target/*.jar
+    expire_in: 1 hour
+
+code_quality_html:
+  stage: test
+  extends: code_quality
+  variables:
+    REPORT_FORMAT: html
+  artifacts:
+    paths: [gl-code-quality-report.html]
+
+# Building services
+
+
+# Building and pushing Docker images
+
+docker_service_registry:
+  stage: docker
+  image: docker
+  services:
+      - docker:dind
+  script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin
+    - cd service-registry
+    - docker build -t edvinas9870/service-registry:latest .
+    - docker push edvinas9870/service-registry:latest
+
+docker_api_gateway:
+  stage: docker
+  image: docker
+  services:
+      - docker:dind
+  script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin
+    - cd api-gateway
+    - docker build -t edvinas9870/api-gateway:latest .
+    - docker push edvinas9870/api-gateway:latest
+
+docker_department_service:
+  stage: docker
+  image: docker
+  services:
+      - docker:dind
+  script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin
+    - cd department-service
+    - docker build -t edvinas9870/department-service:latest .
+    - docker push edvinas9870/department-service:latest
+
+docker_user_service:
+  stage: docker
+  image: docker
+  services:
+      - docker:dind
+  script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin
+    - cd user-service
+    - docker build -t edvinas9870/user-service:latest .
+    - docker push edvinas9870/user-service:latest
+
+# Building and pushing Docker images
+
+
+# Deploying services
+
+deploy_service_registry:
+  stage: deploy
+  image:
+    name: bitnami/kubectl:1.29
+    entrypoint: [""]
+  before_script:
+   - export KUBECONFIG=$KUBECONFIG
+  script:
+   - kubectl apply -f service-registry/deployment.yml --insecure-skip-tls-verify --validate=false
+
+deploy_api_gateway:
+  stage: deploy
+  image:
+    name: bitnami/kubectl:1.29
+    entrypoint: [""]
+  before_script:
+   - export KUBECONFIG=$KUBECONFIG
+  script:
+   - kubectl apply -f api-gateway/deployment.yml --insecure-skip-tls-verify --validate=false
+
+deploy_department_service:
+  stage: deploy
+  image:
+    name: bitnami/kubectl:1.29
+    entrypoint: [""]
+  before_script:
+   - export KUBECONFIG=$KUBECONFIG
+  script:
+   - kubectl apply -f department-service/deployment.yml --insecure-skip-tls-verify --validate=false
+
+deploy_user_service:
+  stage: deploy
+  image:
+    name: bitnami/kubectl:1.29
+    entrypoint: [""]
+  before_script:
+   - export KUBECONFIG=$KUBECONFIG
+  script:
+   - kubectl apply -f user-service/deployment.yml --insecure-skip-tls-verify --validate=false
+
+# Deploying services
